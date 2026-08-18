@@ -20,6 +20,13 @@ type PageResult = {
   h1Count: number;
   canonical: string;
   robots: string;
+  lang: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  structuredData: boolean;
+  imageCount: number;
+  missingImageAlt: number;
   wordCount: number;
   internalLinks: number;
   externalLinks: number;
@@ -43,6 +50,11 @@ type AuditData = {
     missingDescription: number;
     missingH1: number;
     missingCanonical: number;
+    missingOpenGraphTitle: number;
+    missingOpenGraphDescription: number;
+    missingOpenGraphImage: number;
+    missingStructuredData: number;
+    missingImageAlt: number;
   };
 };
 
@@ -102,27 +114,22 @@ export default function HomePage() {
         <h1>Website Intelligence Command Center</h1>
 
         <p className="subtitle">
-          Crawl internal website pages and analyze core technical SEO
-          signals using a private server-side audit.
+          Crawl internal website pages and analyze core technical SEO,
+          social metadata, structured data and accessibility signals in
+          one private server-side audit.
         </p>
 
         <div className="audit-box">
-          <label htmlFor="website-url">
-            Website URL
-          </label>
+          <label htmlFor="website-url">Website URL</label>
 
           <div className="input-row">
             <input
               id="website-url"
               type="url"
               value={url}
-              onChange={(event) =>
-                setUrl(event.target.value)
-              }
+              onChange={(event) => setUrl(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  startAudit();
-                }
+                if (event.key === "Enter") startAudit();
               }}
               placeholder="https://example.com"
               autoComplete="url"
@@ -133,22 +140,16 @@ export default function HomePage() {
               onClick={startAudit}
               disabled={!url.trim() || loading}
             >
-              {loading
-                ? "Crawling..."
-                : "Run Website Audit"}
+              {loading ? "Crawling..." : "Run Website Audit"}
             </button>
           </div>
 
-          <label htmlFor="max-pages">
-            Maximum pages to scan
-          </label>
+          <label htmlFor="max-pages">Maximum pages to scan</label>
 
           <select
             id="max-pages"
             value={maxPages}
-            onChange={(event) =>
-              setMaxPages(event.target.value)
-            }
+            onChange={(event) => setMaxPages(event.target.value)}
           >
             <option value="25">25 pages</option>
             <option value="50">50 pages</option>
@@ -156,9 +157,9 @@ export default function HomePage() {
           </select>
 
           <p className="privacy-note">
-            100% Private / No Upload — pages are fetched server-side
-            for analysis. The crawler follows same-domain HTML links
-            and also checks the website sitemap when available.
+            100% Private / No Upload — pages are fetched server-side for
+            analysis. The crawler uses sitemap discovery when available,
+            then follows same-domain HTML links.
           </p>
         </div>
       </section>
@@ -167,12 +168,10 @@ export default function HomePage() {
         <section className="status-box">
           <div className="loader" />
           <div>
-            <strong>
-              Crawling website...
-            </strong>
+            <strong>Crawling website...</strong>
             <p>
-              Discovering pages from the sitemap and internal links,
-              then checking technical SEO signals.
+              Discovering pages and checking technical SEO, Open Graph,
+              structured data and image accessibility signals.
             </p>
           </div>
         </section>
@@ -192,27 +191,22 @@ export default function HomePage() {
               label="Health Score"
               value={`${result.score}/100`}
             />
-
             <StatCard
               label="Pages Scanned"
               value={String(result.pagesScanned)}
             />
-
             <StatCard
               label="High Issues"
               value={String(result.summary.high)}
             />
-
             <StatCard
               label="Medium Issues"
               value={String(result.summary.medium)}
             />
-
             <StatCard
               label="Low Issues"
               value={String(result.summary.low)}
             />
-
             <StatCard
               label="Missing Titles"
               value={String(result.summary.missingTitle)}
@@ -234,25 +228,36 @@ export default function HomePage() {
             <div className="scope-grid">
               <ScopeItem
                 label="Missing Descriptions"
-                value={String(
-                  result.summary.missingDescription
-                )}
+                value={String(result.summary.missingDescription)}
               />
-
               <ScopeItem
                 label="Missing H1"
-                value={String(
-                  result.summary.missingH1
-                )}
+                value={String(result.summary.missingH1)}
               />
-
               <ScopeItem
                 label="Missing Canonical"
-                value={String(
-                  result.summary.missingCanonical
-                )}
+                value={String(result.summary.missingCanonical)}
               />
-
+              <ScopeItem
+                label="Missing OG Title"
+                value={String(result.summary.missingOpenGraphTitle)}
+              />
+              <ScopeItem
+                label="Missing OG Description"
+                value={String(result.summary.missingOpenGraphDescription)}
+              />
+              <ScopeItem
+                label="Missing OG Image"
+                value={String(result.summary.missingOpenGraphImage)}
+              />
+              <ScopeItem
+                label="No Structured Data"
+                value={String(result.summary.missingStructuredData)}
+              />
+              <ScopeItem
+                label="Pages With Image Alt Issues"
+                value={String(result.summary.missingImageAlt)}
+              />
               <ScopeItem
                 label="HTTP Status"
                 value={String(result.status)}
@@ -265,8 +270,7 @@ export default function HomePage() {
               <div>
                 <h2>Scanned Pages</h2>
                 <p>
-                  Every discovered same-domain page included in this
-                  crawl.
+                  Every discovered same-domain page included in this crawl.
                 </p>
               </div>
             </div>
@@ -279,14 +283,10 @@ export default function HomePage() {
                 >
                   <span
                     className={`severity ${
-                      page.status >= 400
-                        ? "high"
-                        : "low"
+                      page.status >= 400 ? "high" : "low"
                     }`}
                   >
-                    {page.status >= 400
-                      ? page.status
-                      : "OK"}
+                    {page.status >= 400 ? page.status : "OK"}
                   </span>
 
                   <div className="issue-content">
@@ -297,11 +297,33 @@ export default function HomePage() {
                     <p>{page.url}</p>
 
                     <code>
-                      {page.status} · {page.wordCount} words ·{" "}
-                      {page.internalLinks} internal links ·{" "}
-                      {page.externalLinks} external links ·{" "}
-                      {page.issues.length} issues
+                      {page.status} · {page.wordCount} words · {page.internalLinks}{" "}
+                      internal links · {page.externalLinks} external links · {page.issues.length} issues
                     </code>
+
+                    <div className="page-signal-grid">
+                      <Signal label="H1" value={String(page.h1Count)} />
+                      <Signal
+                        label="Canonical"
+                        value={page.canonical ? "Yes" : "No"}
+                      />
+                      <Signal
+                        label="OG"
+                        value={page.ogTitle && page.ogDescription ? "Ready" : "Partial"}
+                      />
+                      <Signal
+                        label="JSON-LD"
+                        value={page.structuredData ? "Yes" : "No"}
+                      />
+                      <Signal
+                        label="Images"
+                        value={`${page.imageCount}/${page.missingImageAlt} alt gaps`}
+                      />
+                      <Signal
+                        label="Lang"
+                        value={page.lang || "Missing"}
+                      />
+                    </div>
                   </div>
                 </article>
               ))}
@@ -313,38 +335,33 @@ export default function HomePage() {
               <div>
                 <h2>Audit Findings</h2>
                 <p>
-                  Issues detected across the scanned pages.
+                  Issues detected across the scanned pages, grouped by severity.
                 </p>
               </div>
             </div>
 
             {result.issues.length === 0 ? (
               <div className="success-box">
-                No technical issues were detected in the current
-                crawl scope.
+                No technical issues were detected in the current crawl scope.
               </div>
             ) : (
               <div className="issues-list">
-                {result.issues
-                  .slice(0, 100)
-                  .map((issue, index) => (
-                    <article
-                      className="issue"
-                      key={`${issue.code}-${issue.url}-${index}`}
-                    >
-                      <span
-                        className={`severity ${issue.severity}`}
-                      >
-                        {issue.severity}
-                      </span>
+                {result.issues.slice(0, 150).map((issue, index) => (
+                  <article
+                    className="issue"
+                    key={`${issue.code}-${issue.url}-${index}`}
+                  >
+                    <span className={`severity ${issue.severity}`}>
+                      {issue.severity}
+                    </span>
 
-                      <div className="issue-content">
-                        <strong>{issue.title}</strong>
-                        <p>{issue.detail}</p>
-                        <code>{issue.url}</code>
-                      </div>
-                    </article>
-                  ))}
+                    <div className="issue-content">
+                      <strong>{issue.title}</strong>
+                      <p>{issue.detail}</p>
+                      <code>{issue.url}</code>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
           </section>
@@ -381,5 +398,20 @@ function ScopeItem({
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function Signal({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <span className="signal">
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </span>
   );
 }
