@@ -22,15 +22,22 @@ input {
 .shell {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 72px 0;
+  padding: 56px 0 80px;
+}
+
+.hero,
+.panel,
+.status-box,
+.error-box {
+  border: 1px solid #1e293b;
+  border-radius: 24px;
+  background: #0b1728;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
 .hero {
-  padding: 48px;
-  border: 1px solid #1e293b;
-  border-radius: 28px;
-  background: linear-gradient(145deg, #0f1d31, #0a1424);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  padding: 44px;
+  background: linear-gradient(145deg, #0f1d31, #091525);
 }
 
 .eyebrow {
@@ -50,7 +57,7 @@ h1 {
 }
 
 .subtitle {
-  max-width: 720px;
+  max-width: 760px;
   margin: 22px 0 0;
   color: #a7b5c8;
   font-size: 18px;
@@ -115,9 +122,202 @@ h1 {
   line-height: 1.6;
 }
 
+.status-box,
+.error-box {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 20px;
+  padding: 20px 22px;
+}
+
+.status-box p,
+.error-box p {
+  margin: 6px 0 0;
+  color: #94a3b8;
+}
+
+.error-box {
+  border-color: #7f1d1d;
+  background: #1c1015;
+}
+
+.loader {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 3px solid #334155;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.stat-card,
+.scope-item {
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  background: #0b1728;
+}
+
+.stat-card {
+  padding: 18px;
+}
+
+.stat-card span,
+.scope-item span {
+  display: block;
+  color: #8292a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.panel {
+  margin-top: 20px;
+  padding: 26px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.panel-header p {
+  margin: 7px 0 0;
+  color: #8292a8;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.verified {
+  padding: 7px 10px;
+  border: 1px solid #14532d;
+  border-radius: 999px;
+  color: #86efac;
+  background: #052e16;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.scope-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.scope-item {
+  padding: 15px;
+}
+
+.scope-item strong {
+  display: block;
+  margin-top: 7px;
+  color: #e2e8f0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.issues-list {
+  display: grid;
+  gap: 10px;
+}
+
+.issue {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #091525;
+}
+
+.severity {
+  align-self: flex-start;
+  min-width: 66px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.severity.high {
+  color: #fecaca;
+  background: #450a0a;
+}
+
+.severity.medium {
+  color: #fde68a;
+  background: #422006;
+}
+
+.severity.low {
+  color: #bfdbfe;
+  background: #172554;
+}
+
+.issue-content {
+  min-width: 0;
+}
+
+.issue-content strong {
+  font-size: 15px;
+}
+
+.issue-content p {
+  margin: 6px 0 0;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.success-box {
+  padding: 18px;
+  border: 1px solid #14532d;
+  border-radius: 14px;
+  color: #bbf7d0;
+  background: #052e16;
+}
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .scope-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 700px) {
   .shell {
-    padding: 24px 0;
+    width: min(100% - 20px, 1120px);
+    padding: 20px 0 48px;
   }
 
   .hero {
@@ -125,6 +325,19 @@ h1 {
   }
 
   .input-row {
+    flex-direction: column;
+  }
+
+  .stats-grid,
+  .scope-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+
+  .panel-header {
     flex-direction: column;
   }
 }
