@@ -48,7 +48,7 @@ type AuditData = {
 
 export default function HomePage() {
   const [url, setUrl] = useState("");
-  const [maxPages, setMaxPages] = useState("25");
+  const [maxPages, setMaxPages] = useState("100");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuditData | null>(null);
   const [error, setError] = useState("");
@@ -65,16 +65,28 @@ export default function HomePage() {
       const response = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: value, maxPages: Number(maxPages) || 25 }),
+        body: JSON.stringify({
+          url: value,
+          maxPages: Number(maxPages) || 100,
+        }),
       });
 
       const payload = await response.json();
+
       if (!response.ok || !payload.success) {
-        throw new Error(payload?.error || "Website audit could not be completed.");
+        throw new Error(
+          payload?.error ||
+            "Website audit could not be completed."
+        );
       }
+
       setResult(payload.data as AuditData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Website audit could not be completed.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Website audit could not be completed."
+      );
     } finally {
       setLoading(false);
     }
@@ -83,40 +95,70 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">TOOLNEST · PRIVATE WEBSITE INTELLIGENCE</p>
+        <p className="eyebrow">
+          TOOLNEST · PRIVATE WEBSITE INTELLIGENCE
+        </p>
+
         <h1>Website Intelligence Command Center</h1>
+
         <p className="subtitle">
-          Crawl multiple internal pages and analyze core technical SEO signals from a private server-side audit.
+          Crawl internal website pages and analyze core technical SEO
+          signals using a private server-side audit.
         </p>
 
         <div className="audit-box">
-          <label htmlFor="website-url">Website URL</label>
+          <label htmlFor="website-url">
+            Website URL
+          </label>
+
           <div className="input-row">
             <input
               id="website-url"
               type="url"
               value={url}
-              onChange={(event) => setUrl(event.target.value)}
+              onChange={(event) =>
+                setUrl(event.target.value)
+              }
               onKeyDown={(event) => {
-                if (event.key === "Enter") startAudit();
+                if (event.key === "Enter") {
+                  startAudit();
+                }
               }}
               placeholder="https://example.com"
               autoComplete="url"
             />
-            <button type="button" onClick={startAudit} disabled={!url.trim() || loading}>
-              {loading ? "Crawling..." : "Run Website Audit"}
+
+            <button
+              type="button"
+              onClick={startAudit}
+              disabled={!url.trim() || loading}
+            >
+              {loading
+                ? "Crawling..."
+                : "Run Website Audit"}
             </button>
           </div>
 
-          <label htmlFor="max-pages">Maximum pages to scan</label>
-          <select id="max-pages" value={maxPages} onChange={(event) => setMaxPages(event.target.value)}>
-            <option value="10">10 pages</option>
+          <label htmlFor="max-pages">
+            Maximum pages to scan
+          </label>
+
+          <select
+            id="max-pages"
+            value={maxPages}
+            onChange={(event) =>
+              setMaxPages(event.target.value)
+            }
+          >
             <option value="25">25 pages</option>
             <option value="50">50 pages</option>
+            <option value="100">100 pages</option>
           </select>
 
           <p className="privacy-note">
-            100% Private / No Upload — pages are fetched server-side for analysis. Only same-domain HTML pages are followed.
+            100% Private / No Upload — pages are fetched server-side
+            for analysis. The crawler follows same-domain HTML links
+            and also checks the website sitemap when available.
           </p>
         </div>
       </section>
@@ -125,8 +167,13 @@ export default function HomePage() {
         <section className="status-box">
           <div className="loader" />
           <div>
-            <strong>Crawling website...</strong>
-            <p>Starting from the submitted URL and following internal links within the selected page limit.</p>
+            <strong>
+              Crawling website...
+            </strong>
+            <p>
+              Discovering pages from the sitemap and internal links,
+              then checking technical SEO signals.
+            </p>
           </div>
         </section>
       )}
@@ -141,12 +188,35 @@ export default function HomePage() {
       {result && !loading && (
         <>
           <section className="stats-grid">
-            <StatCard label="Health Score" value={`${result.score}/100`} />
-            <StatCard label="Pages Scanned" value={String(result.pagesScanned)} />
-            <StatCard label="High Issues" value={String(result.summary.high)} />
-            <StatCard label="Medium Issues" value={String(result.summary.medium)} />
-            <StatCard label="Low Issues" value={String(result.summary.low)} />
-            <StatCard label="Missing Titles" value={String(result.summary.missingTitle)} />
+            <StatCard
+              label="Health Score"
+              value={`${result.score}/100`}
+            />
+
+            <StatCard
+              label="Pages Scanned"
+              value={String(result.pagesScanned)}
+            />
+
+            <StatCard
+              label="High Issues"
+              value={String(result.summary.high)}
+            />
+
+            <StatCard
+              label="Medium Issues"
+              value={String(result.summary.medium)}
+            />
+
+            <StatCard
+              label="Low Issues"
+              value={String(result.summary.low)}
+            />
+
+            <StatCard
+              label="Missing Titles"
+              value={String(result.summary.missingTitle)}
+            />
           </section>
 
           <section className="panel">
@@ -155,14 +225,38 @@ export default function HomePage() {
                 <h2>Crawl Overview</h2>
                 <p>{result.finalUrl}</p>
               </div>
-              <span className="verified">Direct Crawl · {result.pagesScanned} pages</span>
+
+              <span className="verified">
+                Direct Crawl · {result.pagesScanned} pages
+              </span>
             </div>
 
             <div className="scope-grid">
-              <ScopeItem label="Missing Descriptions" value={String(result.summary.missingDescription)} />
-              <ScopeItem label="Missing H1" value={String(result.summary.missingH1)} />
-              <ScopeItem label="Missing Canonical" value={String(result.summary.missingCanonical)} />
-              <ScopeItem label="HTTP Status" value={String(result.status)} />
+              <ScopeItem
+                label="Missing Descriptions"
+                value={String(
+                  result.summary.missingDescription
+                )}
+              />
+
+              <ScopeItem
+                label="Missing H1"
+                value={String(
+                  result.summary.missingH1
+                )}
+              />
+
+              <ScopeItem
+                label="Missing Canonical"
+                value={String(
+                  result.summary.missingCanonical
+                )}
+              />
+
+              <ScopeItem
+                label="HTTP Status"
+                value={String(result.status)}
+              />
             </div>
           </section>
 
@@ -170,21 +264,43 @@ export default function HomePage() {
             <div className="panel-header">
               <div>
                 <h2>Scanned Pages</h2>
-                <p>Every discovered same-domain page included in this crawl.</p>
+                <p>
+                  Every discovered same-domain page included in this
+                  crawl.
+                </p>
               </div>
             </div>
 
             <div className="issues-list">
               {result.pages.map((page, index) => (
-                <article className="issue" key={`${page.url}-${index}`}>
-                  <span className={`severity ${page.status >= 400 ? "high" : "low"}`}>
-                    {page.status >= 400 ? page.status : "OK"}
+                <article
+                  className="issue"
+                  key={`${page.url}-${index}`}
+                >
+                  <span
+                    className={`severity ${
+                      page.status >= 400
+                        ? "high"
+                        : "low"
+                    }`}
+                  >
+                    {page.status >= 400
+                      ? page.status
+                      : "OK"}
                   </span>
+
                   <div className="issue-content">
-                    <strong>{page.title || "Untitled page"}</strong>
+                    <strong>
+                      {page.title || "Untitled page"}
+                    </strong>
+
                     <p>{page.url}</p>
+
                     <code>
-                      {page.status} · {page.wordCount} words · {page.internalLinks} internal links · {page.issues.length} issues
+                      {page.status} · {page.wordCount} words ·{" "}
+                      {page.internalLinks} internal links ·{" "}
+                      {page.externalLinks} external links ·{" "}
+                      {page.issues.length} issues
                     </code>
                   </div>
                 </article>
@@ -196,24 +312,39 @@ export default function HomePage() {
             <div className="panel-header">
               <div>
                 <h2>Audit Findings</h2>
-                <p>Issues detected across the scanned pages.</p>
+                <p>
+                  Issues detected across the scanned pages.
+                </p>
               </div>
             </div>
 
             {result.issues.length === 0 ? (
-              <div className="success-box">No technical issues were detected in the current crawl scope.</div>
+              <div className="success-box">
+                No technical issues were detected in the current
+                crawl scope.
+              </div>
             ) : (
               <div className="issues-list">
-                {result.issues.slice(0, 100).map((issue, index) => (
-                  <article className="issue" key={`${issue.code}-${issue.url}-${index}`}>
-                    <span className={`severity ${issue.severity}`}>{issue.severity}</span>
-                    <div className="issue-content">
-                      <strong>{issue.title}</strong>
-                      <p>{issue.detail}</p>
-                      <code>{issue.url}</code>
-                    </div>
-                  </article>
-                ))}
+                {result.issues
+                  .slice(0, 100)
+                  .map((issue, index) => (
+                    <article
+                      className="issue"
+                      key={`${issue.code}-${issue.url}-${index}`}
+                    >
+                      <span
+                        className={`severity ${issue.severity}`}
+                      >
+                        {issue.severity}
+                      </span>
+
+                      <div className="issue-content">
+                        <strong>{issue.title}</strong>
+                        <p>{issue.detail}</p>
+                        <code>{issue.url}</code>
+                      </div>
+                    </article>
+                  ))}
               </div>
             )}
           </section>
@@ -223,7 +354,13 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <div className="stat-card">
       <span>{label}</span>
@@ -232,7 +369,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ScopeItem({ label, value }: { label: string; value: string }) {
+function ScopeItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <div className="scope-item">
       <span>{label}</span>
