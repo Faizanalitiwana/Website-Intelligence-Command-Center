@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 
 type Severity = "high" | "medium" | "low";
 
@@ -20,8 +20,9 @@ type AuditData = {
 export default function SeverityIssuesPage({
   params,
 }: {
-  params: { severity: string };
+  params: Promise<{ severity: string }>;
 }) {
+  const { severity: rawSeverity } = use(params);
   const [data, setData] = useState<AuditData | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -36,7 +37,7 @@ export default function SeverityIssuesPage({
     }
   }, []);
 
-  const severity = params.severity.toLowerCase() as Severity;
+  const severity = rawSeverity.toLowerCase() as Severity;
   const valid = severity === "high" || severity === "medium" || severity === "low";
   const issues = data?.issues.filter((issue) => issue.severity === severity) ?? [];
   const title = valid ? `${severity[0].toUpperCase()}${severity.slice(1)} Issues` : "Issues";
@@ -50,9 +51,7 @@ export default function SeverityIssuesPage({
       <section className="hero">
         <p className="eyebrow">TOOLNEST · AUDIT RESULTS</p>
         <h1>{title}</h1>
-        <p className="subtitle">
-          Page-level findings collected during the latest direct website crawl.
-        </p>
+        <p className="subtitle">Page-level findings collected during the latest direct website crawl.</p>
       </section>
 
       <section className="panel">
