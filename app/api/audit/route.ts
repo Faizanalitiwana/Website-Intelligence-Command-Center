@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type Severity = "high" | "medium" | "low";
+
 type AuditIssue = {
-  severity: "high" | "medium" | "low";
+  severity: Severity;
   code: string;
   title: string;
   detail: string;
@@ -18,6 +20,13 @@ type PageResult = {
   h1Count: number;
   canonical: string;
   robots: string;
+  lang: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  structuredData: boolean;
+  imageCount: number;
+  missingImageAlt: number;
   wordCount: number;
   internalLinks: number;
   externalLinks: number;
@@ -41,6 +50,11 @@ type AuditData = {
     missingDescription: number;
     missingH1: number;
     missingCanonical: number;
+    missingOpenGraphTitle: number;
+    missingOpenGraphDescription: number;
+    missingOpenGraphImage: number;
+    missingStructuredData: number;
+    missingImageAlt: number;
   };
 };
 
@@ -80,8 +94,12 @@ function getTitle(html: string): string {
   return firstMatch(html, /<title\b[^>]*>([\s\S]*?)<\/title>/i);
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getMeta(html: string, name: string): string {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = escapeRegExp(name);
 
   return (
     firstMatch(
@@ -101,6 +119,27 @@ function getMeta(html: string, name: string): string {
   );
 }
 
+function getPropertyMeta(html: string, property: string): string {
+  const escaped = escapeRegExp(property);
+
+  return (
+    firstMatch(
+      html,
+      new RegExp(
+        `<meta\\b[^>]*\\bproperty=["']${escaped}["'][^>]*\\bcontent=["']([^"']*)["'][^>]*>`,
+        "i"
+      )
+    ) ||
+    firstMatch(
+      html,
+      new RegExp(
+        `<meta\\b[^>]*\\bcontent=["']([^"']*)["'][^>]*\\bproperty=["']${escaped}["'][^>]*>`,
+        "i"
+      )
+    )
+  );
+}
+
 function getCanonical(html: string): string {
   return (
     firstMatch(
@@ -114,8 +153,37 @@ function getCanonical(html: string): string {
   );
 }
 
+function getHtmlLang(html: string): string {
+  return firstMatch(html, /<html\b[^>]*\blang=["']([^"']+)["'][^>]*>/i);
+}
+
 function countTags(html: string, tag: string): number {
   return html.match(new RegExp(`<${tag}\\b`, "gi"))?.length ?? 0;
+}
+
+function countImagesMissingAlt(html: string): {
+  imageCount: number;
+  missingAlt: number;
+} {
+  const images = html.match(/<img\b[^>]*>/gi) ?? [];
+  let missingAlt = 0;
+
+  for (const image of images) {
+    if (!/\balt\s*=\s*["'][^"']*["']/i.test(image)) {
+      missingAlt++;
+    }
+  }
+
+  return {
+    imageCount: images.length,
+    missingAlt,
+  };
+}
+
+function hasStructuredData(html: string): boolean {
+  return /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>/i.test(
+    html
+  );
 }
 
 function normalizeUrl(value: string): string {
@@ -206,7 +274,7 @@ function scoreIssues(issues: AuditIssue[]): number {
   const penalty = issues.reduce((total, issue) => {
     if (issue.severity === "high") return total + 20;
     if (issue.severity === "medium") return total + 12;
-    return total + 6;
+    return total + 3;
   }, 0);
 
   return Math.max(0, Math.min(100, 100 - penalty));
@@ -309,7 +377,7 @@ async function discoverSitemapUrls(
         }
       }
     } catch {
-      // Sitemap discovery is an enhancement; normal link crawling continues.
+      // Sitemap discovery is optional; normal link crawling continues.
     }
   }
 
@@ -328,6 +396,12 @@ function buildPageResult(
   const metaDescription = getMeta(html, "description");
   const canonical = getCanonical(html);
   const robots = getMeta(html, "robots");
+  const lang = getHtmlLang(html);
+  const ogTitle = getPropertyMeta(html, "og:title");
+  const ogDescription = getPropertyMeta(html, "og:description");
+  const ogImage = getPropertyMeta(html, "og:image");
+  const structuredData = hasStructuredData(html);
+  const { imageCount, missingAlt } = countImagesMissingAlt(html);
   const h1Count = countTags(html, "h1");
   const text = stripHtml(html);
   const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
@@ -409,6 +483,22 @@ function buildPageResult(
       detail: "This page does not contain a meta description.",
       url,
     });
+  } else if (metaDescription.length > 160) {
+    issues.push({
+      severity: "low",
+      code: "LONG_META_DESCRIPTION",
+      title: "Long meta description",
+      detail: "The meta description is longer than the commonly recommended search-result range.",
+      url,
+    });
+  } else if (metaDescription.length < 70) {
+    issues.push({
+      severity: "low",
+      code: "SHORT_META_DESCRIPTION",
+      title: "Short meta description",
+      detail: "The meta description is shorter than the commonly recommended search-result range.",
+      url,
+    });
   }
 
   if (h1Count === 0) {
@@ -449,12 +539,72 @@ function buildPageResult(
     });
   }
 
+  if (!ogTitle) {
+    issues.push({
+      severity: "low",
+      code: "MISSING_OG_TITLE",
+      title: "Missing Open Graph title",
+      detail: "The page does not contain an og:title value.",
+      url,
+    });
+  }
+
+  if (!ogDescription) {
+    issues.push({
+      severity: "low",
+      code: "MISSING_OG_DESCRIPTION",
+      title: "Missing Open Graph description",
+      detail: "The page does not contain an og:description value.",
+      url,
+    });
+  }
+
+  if (!ogImage) {
+    issues.push({
+      severity: "low",
+      code: "MISSING_OG_IMAGE",
+      title: "Missing Open Graph image",
+      detail: "The page does not contain an og:image value.",
+      url,
+    });
+  }
+
+  if (!structuredData) {
+    issues.push({
+      severity: "low",
+      code: "MISSING_STRUCTURED_DATA",
+      title: "No structured data detected",
+      detail: "No JSON-LD structured data block was detected on this page.",
+      url,
+    });
+  }
+
+  if (missingAlt > 0) {
+    issues.push({
+      severity: "medium",
+      code: "MISSING_IMAGE_ALT",
+      title: "Images missing alt text",
+      detail: `${missingAlt} of ${imageCount} image${imageCount === 1 ? " is" : "s are"} missing an alt attribute.`,
+      url,
+    });
+  }
+
   if (wordCount < 300) {
     issues.push({
       severity: "low",
       code: "LOW_WORD_COUNT",
       title: "Low visible word count",
       detail: `The page contains approximately ${wordCount} visible words.`,
+      url,
+    });
+  }
+
+  if (!lang) {
+    issues.push({
+      severity: "low",
+      code: "MISSING_HTML_LANG",
+      title: "Missing HTML language attribute",
+      detail: "The root HTML element does not declare a lang attribute.",
       url,
     });
   }
@@ -470,6 +620,13 @@ function buildPageResult(
       h1Count,
       canonical,
       robots,
+      lang,
+      ogTitle,
+      ogDescription,
+      ogImage,
+      structuredData,
+      imageCount,
+      missingImageAlt: missingAlt,
       wordCount,
       internalLinks: allLinks.length,
       externalLinks,
@@ -535,8 +692,6 @@ export async function POST(request: NextRequest) {
     const pages: PageResult[] = [];
     const issues: AuditIssue[] = [];
 
-    // Sitemap discovery lets the audit find pages that are not exposed
-    // as ordinary <a href> links in the initial HTML response.
     try {
       const sitemapUrls = await discoverSitemapUrls(rootUrl, rootOrigin);
 
@@ -593,6 +748,13 @@ export async function POST(request: NextRequest) {
             h1Count: 0,
             canonical: "",
             robots: "",
+            lang: "",
+            ogTitle: "",
+            ogDescription: "",
+            ogImage: "",
+            structuredData: false,
+            imageCount: 0,
+            missingImageAlt: 0,
             wordCount: 0,
             internalLinks: 0,
             externalLinks: 0,
@@ -644,6 +806,13 @@ export async function POST(request: NextRequest) {
           h1Count: 0,
           canonical: "",
           robots: "",
+          lang: "",
+          ogTitle: "",
+          ogDescription: "",
+          ogImage: "",
+          structuredData: false,
+          imageCount: 0,
+          missingImageAlt: 0,
           wordCount: 0,
           internalLinks: 0,
           externalLinks: 0,
@@ -669,6 +838,25 @@ export async function POST(request: NextRequest) {
     const missingCanonical = issues.filter(
       (issue) => issue.code === "MISSING_CANONICAL"
     ).length;
+    const missingOpenGraphTitle = issues.filter(
+      (issue) => issue.code === "MISSING_OG_TITLE"
+    ).length;
+    const missingOpenGraphDescription = issues.filter(
+      (issue) => issue.code === "MISSING_OG_DESCRIPTION"
+    ).length;
+    const missingOpenGraphImage = issues.filter(
+      (issue) => issue.code === "MISSING_OG_IMAGE"
+    ).length;
+    const missingStructuredData = issues.filter(
+      (issue) => issue.code === "MISSING_STRUCTURED_DATA"
+    ).length;
+    const missingImageAlt = issues.reduce(
+      (total, issue) =>
+        issue.code === "MISSING_IMAGE_ALT"
+          ? total + 1
+          : total,
+      0
+    );
 
     const score = pages.length
       ? Math.round(
@@ -696,6 +884,11 @@ export async function POST(request: NextRequest) {
         missingDescription,
         missingH1,
         missingCanonical,
+        missingOpenGraphTitle,
+        missingOpenGraphDescription,
+        missingOpenGraphImage,
+        missingStructuredData,
+        missingImageAlt,
       },
     };
 
