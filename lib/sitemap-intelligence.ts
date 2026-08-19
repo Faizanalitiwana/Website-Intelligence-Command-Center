@@ -1,24 +1,4 @@
-export type SitemapIntelligence = {
-  robotsUrl: string;
-  robotsStatus: number | null;
-  robotsFound: boolean;
-  sitemapUrls: string[];
-  sitemapStatus: number | null;
-  sitemapFound: boolean;
-  sitemapUrlCount: number;
-  indexedBySitemap: string[];
-  missingFromSitemap: string[];
-  sitemapOnlyUrls: string[];
-  errors: string[];
-};
-
-function normalizeUrl(value: string): string {
-  const url = new URL(value);
-  url.hash = "";
-  url.search = "";
-  if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
-  return url.toString();
-}
+import { normalizeUrl } from "@/lib/url";
 
 function isHttp(value: string): boolean {
   try {
@@ -29,14 +9,14 @@ function isHttp(value: string): boolean {
   }
 }
 
-async function fetchText(url: string, accept: string): Promise<{ status: number | null; text: string }> {
+async function fetchText(url: string): Promise<{ status: number | null; text: string }> {
   try {
     const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
+      headers: {
+        "User-Agent": "ToolNest-Website-Intelligence/1.0",
+        Accept: "text/plain,text/xml,application/xml",
+      },
       cache: "no-store",
-      headers: { "User-Agent": "ToolNest-Website-Intelligence/1.0", Accept: accept },
-      signal: AbortSignal.timeout(12000),
     });
     return { status: response.status, text: await response.text() };
   } catch {
@@ -46,77 +26,98 @@ async function fetchText(url: string, accept: string): Promise<{ status: number 
 
 function locs(xml: string, base: URL): string[] {
   const result = new Set<string>();
-  const re = /<loc\\b[^>]*>([\\s\\S]*?)<\\/loc>/gi;
+  const re = /<loc\b[^>]*>([\s\S]*?)<\/loc>/gi;
   let m: RegExpExecArray | null;
+
   while ((m = re.exec(xml)) !== null) {
     const raw = (m[1] ?? "").replace(/<[^>]+>/g, "").trim();
     if (!raw) continue;
+
     try {
       const u = new URL(raw, base);
-      if (isHttp(u.toString())) result.add(normalizeUrl(u.toString()));
-    } catch {}
+      if (isHttp(u.toString())) {
+        result.add(normalizeUrl(u.toString()));
+      }
+    } catch {
+      // Ignore malformed sitemap URLs.
+    }
   }
+
   return [...result];
 }
 
-export async function analyzeSitemap(rootUrl: string, crawledUrls: string[]): Promise<SitemapIntelligence> {
-  const root = new URL(rootUrl);
-  const robotsUrl = new URL("/robots.txt", root).toString();
-  const candidates = new Set<string>([
-    new URL("/sitemap.xml", root).toString(),
-    new URL("/sitemap_index.xml", root).toString(),
-  ]);
-  const errors: string[] = [];
-  const robots = await fetchText(robotsUrl, "text/plain,*/*;q=0.1");
-  if (robots.status !== 200) errors.push("robots.txt could not be fetched successfully.");
-  for (const line of robots.text.split(/\\r?\\n/)) {
-    const m = line.match(/^\\s*sitemap\\s*:\\s*(\\S+)\\s*$/i);
-    if (!m?.[1]) continue;
-    try {
-      const u = new URL(m[1], root);
-      if (u.origin === root.origin) candidates.add(normalizeUrl(u.toString()));
-    } catch {}
-  }
+export type SitemapIntelligence = {
+  robotsStatus: number | null;
+  robotsFound: boolean;
+  robotsSitemaps: string[];
+  sitemapStatus: number | null;
+  sitemapFound: boolean;
+  sitemapUrls: string[];
+  sitemapIndexes: string[];
+};
 
-  const queue = [...candidates];
-  const visited = new Set<string>();
+export async function analyzeSitemapIntelligence(startUrl: string): Promise<SitemapIntelligence> {
+  const root = new URL(startUrl);
+  const origin = `${root.protocol}//${root.host}`;
+  const robotsUrl = `${origin}/robots.txt`;
+  const candidates = [`${origin}/sitemap.xml`, `${origin}/sitemap_index.xml`];
+
+  const robots = await fetchText(robotsUrl);
+  const robotsSitemaps = robots.text
+    .split(/\r?\n/)
+    .map((line) => line.match(/^\s*sitemap\s*:\s*(\S+)/i)?.[1] ?? "")
+    .filter((value) => isHttp(value))
+    .map((value) => normalizeUrl(value));
+
   const sitemapUrls = new Set<string>();
+  const sitemapIndexes = new Set<string>();
   let sitemapStatus: number | null = null;
-  while (queue.length && visited.size < 10) {
-    const url = queue.shift()!;
-    if (visited.has(url)) continue;
-    visited.add(url);
-    const result = await fetchText(url, "application/xml,text/xml,text/plain,*/*;q=0.1");
-    sitemapStatus = result.status;
-    if (result.status !== 200 || !result.text) continue;
-    const locations = locs(result.text, new URL(url));
-    if (/<sitemapindex\\b/i.test(result.text)) {
-      for (const child of locations) {
-        if (new URL(child).origin === root.origin && !visited.has(child)) queue.push(child);
+  let sitemapFound = false;
+
+  const sitemapCandidates = [...new Set([...robotsSitemaps, ...candidates])];
+
+  for (const sitemapUrl of sitemapCandidates) {
+    const response = await fetchText(sitemapUrl);
+    if (response.status === null) continue;
+
+    if (sitemapStatus === null || response.status < sitemapStatus) {
+      sitemapStatus = response.status;
+    }
+
+    if (response.status < 200 || response.status >= 400 || !response.text) continue;
+    sitemapFound = true;
+
+    const urls = locs(response.text, new URL(sitemapUrl));
+    const lower = response.text.toLowerCase();
+    const isIndex = lower.includes("<sitemapindex");
+
+    if (isIndex) {
+      for (const child of urls) {
+        sitemapIndexes.add(child);
       }
     } else {
-      for (const page of locations) {
-        if (new URL(page).origin === root.origin) sitemapUrls.add(page);
+      for (const url of urls) {
+        sitemapUrls.add(url);
       }
     }
   }
 
-  const crawled = new Set(crawledUrls.map((u) => normalizeUrl(u)));
-  const indexed = [...sitemapUrls].filter((u) => crawled.has(u));
-  const missingFromSitemap = [...crawled].filter((u) => !sitemapUrls.has(u));
-  const sitemapOnlyUrls = [...sitemapUrls].filter((u) => !crawled.has(u));
+  for (const child of sitemapIndexes) {
+    const response = await fetchText(child);
+    if (response.status === null || response.status < 200 || response.status >= 400) continue;
+
+    for (const url of locs(response.text, new URL(child))) {
+      sitemapUrls.add(url);
+    }
+  }
 
   return {
-    robotsUrl,
     robotsStatus: robots.status,
-    robotsFound: robots.status === 200,
-    sitemapUrls: [...candidates],
+    robotsFound: robots.status !== null && robots.status >= 200 && robots.status < 400,
+    robotsSitemaps,
     sitemapStatus,
-    sitemapFound: sitemapUrls.size > 0,
-    sitemapUrlCount: sitemapUrls.size,
-    indexedBySitemap: indexed,
-    missingFromSitemap,
-    sitemapOnlyUrls,
-    errors,
+    sitemapFound,
+    sitemapUrls: [...sitemapUrls],
+    sitemapIndexes: [...sitemapIndexes],
   };
 }
