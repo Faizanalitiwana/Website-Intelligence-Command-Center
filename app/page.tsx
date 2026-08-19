@@ -86,20 +86,14 @@ export default function HomePage() {
       const payload = await response.json();
 
       if (!response.ok || !payload.success) {
-        throw new Error(
-          payload?.error || "Website audit could not be completed."
-        );
+        throw new Error(payload?.error || "Website audit could not be completed.");
       }
 
       const auditData = payload.data as AuditData;
       setResult(auditData);
       window.sessionStorage.setItem("toolnest-audit-result", JSON.stringify(auditData));
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Website audit could not be completed."
-      );
+      setError(err instanceof Error ? err.message : "Website audit could not be completed.");
     } finally {
       setLoading(false);
     }
@@ -115,56 +109,39 @@ export default function HomePage() {
     <main className="shell">
       <section className="hero">
         <p className="eyebrow">TOOLNEST · PRIVATE WEBSITE INTELLIGENCE</p>
-
         <h1>Website Intelligence Command Center</h1>
-
         <p className="subtitle">
-          Crawl internal website pages and analyze core technical SEO,
-          social metadata, structured data and accessibility signals in
-          one private server-side audit.
+          Crawl internal website pages and analyze core technical SEO, social metadata,
+          structured data and accessibility signals in one private server-side audit.
         </p>
 
         <div className="audit-box">
           <label htmlFor="website-url">Website URL</label>
-
           <div className="input-row">
             <input
               id="website-url"
               type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") startAudit();
-              }}
+              onKeyDown={(event) => { if (event.key === "Enter") startAudit(); }}
               placeholder="https://example.com"
               autoComplete="url"
             />
-
-            <button
-              type="button"
-              onClick={startAudit}
-              disabled={!url.trim() || loading}
-            >
+            <button type="button" onClick={startAudit} disabled={!url.trim() || loading}>
               {loading ? "Crawling..." : "Run Website Audit"}
             </button>
           </div>
 
           <label htmlFor="max-pages">Maximum pages to scan</label>
-
-          <select
-            id="max-pages"
-            value={maxPages}
-            onChange={(event) => setMaxPages(event.target.value)}
-          >
+          <select id="max-pages" value={maxPages} onChange={(event) => setMaxPages(event.target.value)}>
             <option value="25">25 pages</option>
             <option value="50">50 pages</option>
             <option value="100">100 pages</option>
           </select>
 
           <p className="privacy-note">
-            100% Private / No Upload — pages are fetched server-side for
-            analysis. The crawler uses sitemap discovery when available,
-            then follows same-domain HTML links.
+            100% Private / No Upload — pages are fetched server-side for analysis.
+            The crawler uses sitemap discovery when available, then follows same-domain HTML links.
           </p>
         </div>
       </section>
@@ -174,10 +151,7 @@ export default function HomePage() {
           <div className="loader" />
           <div>
             <strong>Crawling website...</strong>
-            <p>
-              Discovering pages and checking technical SEO, Open Graph,
-              structured data and image accessibility signals.
-            </p>
+            <p>Discovering pages and checking technical SEO, Open Graph, structured data and image accessibility signals.</p>
           </div>
         </section>
       )}
@@ -209,26 +183,11 @@ export default function HomePage() {
             </div>
 
             <div className="stats-grid">
-              <ResultButton
-                label="High Issues"
-                value={result.summary.high}
-                onClick={() => openResults("/issues/high")}
-              />
-              <ResultButton
-                label="Medium Issues"
-                value={result.summary.medium}
-                onClick={() => openResults("/issues/medium")}
-              />
-              <ResultButton
-                label="Low Issues"
-                value={result.summary.low}
-                onClick={() => openResults("/issues/low")}
-              />
-              <ResultButton
-                label="Page-wise Details"
-                value={result.pages.length}
-                onClick={() => openResults("/page-details")}
-              />
+              <ResultButton label="High Issues" value={result.summary.high} onClick={() => openResults("/issues/high")} />
+              <ResultButton label="Medium Issues" value={result.summary.medium} onClick={() => openResults("/issues/medium")} />
+              <ResultButton label="Low Issues" value={result.summary.low} onClick={() => openResults("/issues/low")} />
+              <ResultButton label="Page-wise Details" value={result.pages.length} onClick={() => openResults("/page-details")} />
+              <ResultButton label="Duplicate SEO Details" value={result.pages.length} onClick={() => openResults("/duplicate-details")} />
             </div>
           </section>
 
@@ -238,7 +197,6 @@ export default function HomePage() {
                 <h2>Crawl Overview</h2>
                 <p>{result.finalUrl}</p>
               </div>
-
               <span className="verified">Direct Crawl · {result.pagesScanned} pages</span>
             </div>
 
@@ -269,14 +227,12 @@ export default function HomePage() {
                   <span className={`severity ${page.status >= 400 ? "high" : "low"}`}>
                     {page.status >= 400 ? page.status : "OK"}
                   </span>
-
                   <div className="issue-content">
                     <strong>{page.title || "Untitled page"}</strong>
                     <p>{page.url}</p>
                     <code>
                       {page.status} · {page.wordCount} words · {page.internalLinks} internal links · {page.externalLinks} external links · {page.issues.length} issues
                     </code>
-
                     <div className="page-signal-grid">
                       <Signal label="H1" value={String(page.h1Count)} />
                       <Signal label="Canonical" value={page.canonical ? "Yes" : "No"} />
