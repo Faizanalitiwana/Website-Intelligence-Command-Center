@@ -10,7 +10,6 @@ type PageResult = {
 };
 
 type AuditData = { pages: PageResult[] };
-
 type DuplicateGroup = { value: string; pages: PageResult[] };
 
 export default function DuplicateDetailsPage() {
@@ -25,13 +24,8 @@ export default function DuplicateDetailsPage() {
     }
   }, []);
 
-  const duplicateTitles = useMemo(() => {
-    return buildGroups(audit?.pages ?? [], (page) => page.title);
-  }, [audit]);
-
-  const duplicateDescriptions = useMemo(() => {
-    return buildGroups(audit?.pages ?? [], (page) => page.metaDescription);
-  }, [audit]);
+  const duplicateTitles = useMemo(() => buildGroups(audit?.pages ?? [], (page) => page.title), [audit]);
+  const duplicateDescriptions = useMemo(() => buildGroups(audit?.pages ?? [], (page) => page.metaDescription), [audit]);
 
   if (!audit) {
     return (
@@ -50,42 +44,40 @@ export default function DuplicateDetailsPage() {
       <section className="hero">
         <p className="eyebrow">TOOLNEST · SEO QUALITY CONTROL</p>
         <h1>Duplicate SEO Details</h1>
-        <p className="subtitle">
-          Page-wise duplicate title and meta-description groups detected in the latest crawl.
-        </p>
+        <p className="subtitle">Page-wise duplicate title and meta-description groups detected in the latest crawl.</p>
       </section>
 
       <section className="panel">
         <div className="panel-header">
-          <div>
-            <h2>Duplicate Titles</h2>
-            <p>{duplicateTitles.length} duplicate groups</p>
-          </div>
+          <div><h2>Duplicate Titles</h2><p>{duplicateTitles.length} duplicate groups</p></div>
         </div>
         <DuplicateGroups groups={duplicateTitles} empty="No duplicate page titles detected." />
       </section>
 
       <section className="panel">
         <div className="panel-header">
-          <div>
-            <h2>Duplicate Meta Descriptions</h2>
-            <p>{duplicateDescriptions.length} duplicate groups</p>
-          </div>
+          <div><h2>Duplicate Meta Descriptions</h2><p>{duplicateDescriptions.length} duplicate groups</p></div>
         </div>
         <DuplicateGroups groups={duplicateDescriptions} empty="No duplicate meta descriptions detected." />
       </section>
 
       <section className="panel">
-        <a href="/">← Back to Audit Dashboard</a>
+        <div className="stats-grid">
+          <a className="stat-card" href="/recommendations" style={{ textDecoration: "none" }}>
+            <span>Action Center</span>
+            <strong>SEO Recommendations →</strong>
+          </a>
+          <a className="stat-card" href="/" style={{ textDecoration: "none" }}>
+            <span>Navigation</span>
+            <strong>← Audit Dashboard</strong>
+          </a>
+        </div>
       </section>
     </main>
   );
 }
 
-function buildGroups(
-  pages: PageResult[],
-  getValue: (page: PageResult) => string
-): DuplicateGroup[] {
+function buildGroups(pages: PageResult[], getValue: (page: PageResult) => string): DuplicateGroup[] {
   const map = new Map<string, PageResult[]>();
 
   for (const page of pages) {
@@ -113,9 +105,7 @@ function DuplicateGroups({ groups, empty }: { groups: DuplicateGroup[]; empty: s
             <strong>{group.value}</strong>
             <p>These pages share the same SEO value and should be reviewed for uniqueness.</p>
             {group.pages.map((page) => (
-              <code key={page.url} style={{ display: "block", marginTop: 6 }}>
-                {page.url}
-              </code>
+              <code key={page.url} style={{ display: "block", marginTop: 6 }}>{page.url}</code>
             ))}
           </div>
         </article>
