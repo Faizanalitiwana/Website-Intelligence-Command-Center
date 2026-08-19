@@ -1,4 +1,16 @@
-import { normalizeUrl } from "@/lib/url";
+function normalize(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.search = "";
+    if (url.pathname !== "/") {
+      url.pathname = url.pathname.replace(/\/+$/, "");
+    }
+    return url.toString();
+  } catch {
+    return value.trim();
+  }
+}
 
 function isHttp(value: string): boolean {
   try {
@@ -36,7 +48,7 @@ function locs(xml: string, base: URL): string[] {
     try {
       const u = new URL(raw, base);
       if (isHttp(u.toString())) {
-        result.add(normalizeUrl(u.toString()));
+        result.add(normalize(u.toString()));
       }
     } catch {
       // Ignore malformed sitemap URLs.
@@ -67,7 +79,7 @@ export async function analyzeSitemapIntelligence(startUrl: string): Promise<Site
     .split(/\r?\n/)
     .map((line) => line.match(/^\s*sitemap\s*:\s*(\S+)/i)?.[1] ?? "")
     .filter((value) => isHttp(value))
-    .map((value) => normalizeUrl(value));
+    .map((value) => normalize(value));
 
   const sitemapUrls = new Set<string>();
   const sitemapIndexes = new Set<string>();
@@ -92,23 +104,16 @@ export async function analyzeSitemapIntelligence(startUrl: string): Promise<Site
     const isIndex = lower.includes("<sitemapindex");
 
     if (isIndex) {
-      for (const child of urls) {
-        sitemapIndexes.add(child);
-      }
+      for (const child of urls) sitemapIndexes.add(child);
     } else {
-      for (const url of urls) {
-        sitemapUrls.add(url);
-      }
+      for (const url of urls) sitemapUrls.add(url);
     }
   }
 
   for (const child of sitemapIndexes) {
     const response = await fetchText(child);
     if (response.status === null || response.status < 200 || response.status >= 400) continue;
-
-    for (const url of locs(response.text, new URL(child))) {
-      sitemapUrls.add(url);
-    }
+    for (const url of locs(response.text, new URL(child))) sitemapUrls.add(url);
   }
 
   return {
