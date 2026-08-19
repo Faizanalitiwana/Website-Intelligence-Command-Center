@@ -1,4 +1,19 @@
-import type { PageAudit } from "@/types/audit";
+export type CrawlCoveragePage = {
+  url: string;
+  status: number | null;
+  finalUrl: string;
+  contentType: string;
+  title: string;
+  metaDescription: string;
+  h1Count: number;
+  canonical: string;
+  robots: string;
+  wordCount: number;
+  internalLinks: number;
+  externalLinks: number;
+  depth: number;
+  error?: string;
+};
 
 export type CrawlCoverage = {
   totalCrawled: number;
@@ -8,20 +23,48 @@ export type CrawlCoverage = {
   status5xx: number;
   failed: number;
   maxDepth: number;
-  deepPages: PageAudit[];
-  orphanPages: PageAudit[];
+  deepPages: CrawlCoveragePage[];
+  orphanPages: CrawlCoveragePage[];
 };
 
 export function calculateCrawlCoverage(
-  pages: PageAudit[],
+  pages: CrawlCoveragePage[],
   deepPageDepth = 3
 ): CrawlCoverage {
-  const status2xx = pages.filter((page) => page.status !== null && page.status >= 200 && page.status < 300).length;
-  const status3xx = pages.filter((page) => page.status !== null && page.status >= 300 && page.status < 400).length;
-  const status4xx = pages.filter((page) => page.status !== null && page.status >= 400 && page.status < 500).length;
-  const status5xx = pages.filter((page) => page.status !== null && page.status >= 500).length;
-  const failed = pages.filter((page) => page.status === null).length;
-  const depths = pages.map((page) => page.depth ?? 0);
+  const status2xx = pages.filter(
+    (page) =>
+      page.status !== null &&
+      page.status >= 200 &&
+      page.status < 300
+  ).length;
+
+  const status3xx = pages.filter(
+    (page) =>
+      page.status !== null &&
+      page.status >= 300 &&
+      page.status < 400
+  ).length;
+
+  const status4xx = pages.filter(
+    (page) =>
+      page.status !== null &&
+      page.status >= 400 &&
+      page.status < 500
+  ).length;
+
+  const status5xx = pages.filter(
+    (page) =>
+      page.status !== null &&
+      page.status >= 500
+  ).length;
+
+  const failed = pages.filter(
+    (page) => page.status === null
+  ).length;
+
+  const depths = pages.map(
+    (page) => page.depth ?? 0
+  );
 
   return {
     totalCrawled: pages.length,
@@ -30,8 +73,16 @@ export function calculateCrawlCoverage(
     status4xx,
     status5xx,
     failed,
-    maxDepth: depths.length ? Math.max(...depths) : 0,
-    deepPages: pages.filter((page) => (page.depth ?? 0) > deepPageDepth),
-    orphanPages: pages.filter((page) => page.internalLinks === 0),
+    maxDepth:
+      depths.length > 0
+        ? Math.max(...depths)
+        : 0,
+    deepPages: pages.filter(
+      (page) =>
+        (page.depth ?? 0) > deepPageDepth
+    ),
+    orphanPages: pages.filter(
+      (page) => page.internalLinks === 0
+    ),
   };
 }
