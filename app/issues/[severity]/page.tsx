@@ -24,6 +24,11 @@ function readSeverityFromPath(): string {
   return parts[parts.length - 1] ?? "";
 }
 
+function normalizeSeverity(value: unknown): Severity {
+  if (value === "high" || value === "medium") return value;
+  return "low";
+}
+
 export default function SeverityIssuesPage() {
   const [data, setData] = useState<AuditData | null>(null);
   const [rawSeverity, setRawSeverity] = useState("");
@@ -34,36 +39,43 @@ export default function SeverityIssuesPage() {
 
     try {
       const raw = window.sessionStorage.getItem("toolnest-audit-result");
+
       if (raw) {
         const parsed: unknown = JSON.parse(raw);
+
         if (parsed && typeof parsed === "object") {
-          const source = parsed as { finalUrl?: unknown; issues?: unknown };
-          const issues = Array.isArray(source.issues)
+          const source = parsed as {
+            finalUrl?: unknown;
+            issues?: unknown;
+          };
+
+          const issues: AuditIssue[] = Array.isArray(source.issues)
             ? source.issues
                 .filter(
                   (issue): issue is Record<string, unknown> =>
                     Boolean(issue) && typeof issue === "object",
                 )
-                .map((issue) => ({
-                  severity:
-                    issue.severity === "high" || issue.severity === "medium"
-                      ? issue.severity
-                      : "low",
-                  code: typeof issue.code === "string" ? issue.code : "UNKNOWN",
-                  title:
-                    typeof issue.title === "string"
-                      ? issue.title
-                      : "Audit issue",
-                  detail:
-                    typeof issue.detail === "string"
-                      ? issue.detail
-                      : "No additional details available.",
-                  url: typeof issue.url === "string" ? issue.url : "",
-                }))
+                .map(
+                  (issue): AuditIssue => ({
+                    severity: normalizeSeverity(issue.severity),
+                    code:
+                      typeof issue.code === "string" ? issue.code : "UNKNOWN",
+                    title:
+                      typeof issue.title === "string"
+                        ? issue.title
+                        : "Audit issue",
+                    detail:
+                      typeof issue.detail === "string"
+                        ? issue.detail
+                        : "No additional details available.",
+                    url: typeof issue.url === "string" ? issue.url : "",
+                  }),
+                )
             : [];
 
           setData({
-            finalUrl: typeof source.finalUrl === "string" ? source.finalUrl : "",
+            finalUrl:
+              typeof source.finalUrl === "string" ? source.finalUrl : "",
             issues,
           });
         }
@@ -76,9 +88,12 @@ export default function SeverityIssuesPage() {
   }, []);
 
   const severity = rawSeverity.toLowerCase();
-  const valid = severity === "high" || severity === "medium" || severity === "low";
-  const typedSeverity = valid ? (severity as Severity) : "low";
-  const issues = data?.issues.filter((issue) => issue.severity === typedSeverity) ?? [];
+  const valid =
+    severity === "high" || severity === "medium" || severity === "low";
+  const typedSeverity: Severity = valid ? (severity as Severity) : "low";
+  const issues =
+    data?.issues.filter((issue) => issue.severity === typedSeverity) ?? [];
+
   const title = valid
     ? `${typedSeverity[0].toUpperCase()}${typedSeverity.slice(1)} Issues`
     : "Issues";
