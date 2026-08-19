@@ -37,19 +37,68 @@ type AuditData = {
   pages: PageResult[];
 };
 
+function safeAuditData(raw: string | null): AuditData | null {
+  if (!raw) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const source = parsed as { finalUrl?: unknown; pages?: unknown };
+
+    if (!Array.isArray(source.pages)) return null;
+
+    const pages: PageResult[] = source.pages
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item) => ({
+        url: typeof item.url === "string" ? item.url : "",
+        finalUrl: typeof item.finalUrl === "string" ? item.finalUrl : "",
+        status: typeof item.status === "number" ? item.status : 0,
+        title: typeof item.title === "string" ? item.title : "",
+        metaDescription: typeof item.metaDescription === "string" ? item.metaDescription : "",
+        h1Count: typeof item.h1Count === "number" ? item.h1Count : 0,
+        canonical: typeof item.canonical === "string" ? item.canonical : "",
+        robots: typeof item.robots === "string" ? item.robots : "",
+        lang: typeof item.lang === "string" ? item.lang : "",
+        ogTitle: typeof item.ogTitle === "string" ? item.ogTitle : "",
+        ogDescription: typeof item.ogDescription === "string" ? item.ogDescription : "",
+        ogImage: typeof item.ogImage === "string" ? item.ogImage : "",
+        structuredData: item.structuredData === true,
+        imageCount: typeof item.imageCount === "number" ? item.imageCount : 0,
+        missingImageAlt: typeof item.missingImageAlt === "number" ? item.missingImageAlt : 0,
+        wordCount: typeof item.wordCount === "number" ? item.wordCount : 0,
+        internalLinks: typeof item.internalLinks === "number" ? item.internalLinks : 0,
+        externalLinks: typeof item.externalLinks === "number" ? item.externalLinks : 0,
+        issues: Array.isArray(item.issues)
+          ? item.issues
+              .filter((issue): issue is Record<string, unknown> => Boolean(issue) && typeof issue === "object")
+              .map((issue) => ({
+                severity: issue.severity === "high" || issue.severity === "medium" ? issue.severity : "low",
+                code: typeof issue.code === "string" ? issue.code : "UNKNOWN",
+                title: typeof issue.title === "string" ? issue.title : "Audit issue",
+                detail: typeof issue.detail === "string" ? issue.detail : "No additional details available.",
+                url: typeof issue.url === "string" ? issue.url : "",
+              }))
+          : [],
+      }));
+
+    return {
+      finalUrl: typeof source.finalUrl === "string" ? source.finalUrl : "",
+      pages,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function PageDetails() {
   const [data, setData] = useState<AuditData | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = window.sessionStorage.getItem("toolnest-audit-result");
-      if (raw) setData(JSON.parse(raw) as AuditData);
-    } catch {
-      setData(null);
-    } finally {
-      setReady(true);
-    }
+    setData(safeAuditData(window.sessionStorage.getItem("toolnest-audit-result")));
+    setReady(true);
   }, []);
 
   if (!ready) {
@@ -70,7 +119,7 @@ export default function PageDetails() {
         <div className="panel-header">
           <div>
             <h2>Scanned Pages</h2>
-            <p>{data?.finalUrl ?? "No saved audit"}</p>
+            <p>{data?.finalUrl || "No saved audit"}</p>
           </div>
           <span className="verified">{data?.pages.length ?? 0} pages</span>
         </div>
@@ -83,14 +132,14 @@ export default function PageDetails() {
         ) : (
           <div className="issues-list">
             {data.pages.map((page, index) => (
-              <article className="issue" key={`${page.url}-${index}`}>
+              <article className="issue" key={`${page.url || "page"}-${index}`}>
                 <span className={`severity ${page.status >= 400 ? "high" : "low"}`}>
                   {page.status >= 400 ? page.status : "OK"}
                 </span>
 
                 <div className="issue-content">
                   <strong>{page.title || "Untitled page"}</strong>
-                  <p>{page.url}</p>
+                  <p>{page.url || page.finalUrl || "Unknown URL"}</p>
 
                   <div className="page-signal-grid">
                     <Signal label="HTTP" value={String(page.status)} />
@@ -119,6 +168,7 @@ export default function PageDetails() {
                           <div className="issue-content">
                             <strong>{issue.title}</strong>
                             <p>{issue.detail}</p>
+                            {issue.url && <code>{issue.url}</code>}
                           </div>
                         </div>
                       ))}
